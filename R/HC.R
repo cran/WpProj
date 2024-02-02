@@ -2,7 +2,9 @@
 #' 
 #' @title Run the Hahn-Carvalho Method
 #' 
-#' @description Runs the Hahn-Carvalho method but adapted to return full distributions.
+#' @description 
+#' `r lifecycle::badge("experimental")` 
+#' Runs the Hahn-Carvalho method but adapted to return full distributions.
 #' 
 #' @param X Covariates
 #' @param Y Predictions
@@ -25,6 +27,8 @@
 #' @param irls.tol IRLS tolerance for OEM
 #' 
 #' @return a `WpProj` object with selected covariates and their values
+#' 
+#' @references Hahn, P. Richard and Carlos M. Carvalho. (2014) "Decoupling Shrinkage and Selection in Bayesian Linear Models: A Posterior Summary Perspective." <https://arxiv.org/pdf/1408.0464.pdf>
 #' 
 #' @export
 #' 

@@ -1,4 +1,4 @@
-testthat::test_that("W2L1 function for selection variable, exact", {
+test_that("W2L1 function for selection variable, exact", {
   set.seed(111)
   
   ##### Testing R Functions ####
@@ -659,13 +659,14 @@ testthat::test_that("W2L1 function for projection", {
 testthat::test_that("W2L1 function for grouped projection", {
   set.seed(283947)
   
-  n <- 256
-  p <- 100
+  n <- 32
+  p <- 20
+  g <- 10
   s <- 21
   
   x <- matrix(stats::rnorm(p*n), nrow=n, ncol=p)
-  beta <- rep((1:10)/10, 10)
-  groups <- rep(1:10, 10)
+  beta <- rep((1:g)/g, p/g)
+  groups <- rep(1:g, p/g)
   y <- x %*% beta + stats::rnorm(n)
   
   #posterior
@@ -688,14 +689,14 @@ testthat::test_that("W2L1 function for grouped projection", {
   penalty.factor <- 1/rowMeans(theta^2)
   penalty.factor.null <- rep(1,p)
   transp <- "hilbert"
-  projectionols_nogroup <- W2L1(X=x, Y=NULL, 
+  projectionols_nogroup <- WpProj:::W2L1(X=x, Y=NULL, 
                                theta=theta, penalty="ols",
                                nlambda = nlambda, lambda.min.ratio = lambda.min.ratio,
                                infimum.maxit=1, maxit = 1e3, gamma = gamma,
                                display.progress = FALSE, lambda=lambda,
                                penalty.factor = penalty.factor.null, method="projection",
                                tol = 0)
-  projectionols <- W2L1(X=x, Y=NULL, 
+  projectionols <- WpProj:::W2L1(X=x, Y=NULL, 
                         theta=theta, penalty="ols", groups = groups,
                         nlambda = nlambda, lambda.min.ratio = lambda.min.ratio,
                         infimum.maxit=1, maxit = 1e3, gamma = gamma,
@@ -709,14 +710,14 @@ testthat::test_that("W2L1 function for grouped projection", {
   testthat::expect_equal(c(theta), c(coef(lm(post_mu ~ x + 0))))#should be pretty close
   
   
-  projectionmcp_nogroup <- W2L1(X=x, Y=NULL, 
+  projectionmcp_nogroup <-WpProj::: W2L1(X=x, Y=NULL, 
                         theta=theta, penalty="mcp",
                         nlambda = nlambda, lambda.min.ratio = lambda.min.ratio,
                         infimum.maxit=1, maxit = 1e3, gamma = gamma,
                         display.progress = FALSE,
                         penalty.factor = penalty.factor.null, method="projection",
                         tol = 0)
-  projectionmcp <- W2L1(X=x, Y=NULL, 
+  projectionmcp <- WpProj:::W2L1(X=x, Y=NULL, 
                         theta=theta, penalty="grp.mcp", groups = groups,
                         nlambda = nlambda, lambda.min.ratio = lambda.min.ratio,
                         infimum.maxit=1, maxit = 1e3, gamma = gamma,

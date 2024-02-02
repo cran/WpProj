@@ -71,6 +71,7 @@ HC(
 a \code{WpProj} object with selected covariates and their values
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 Runs the Hahn-Carvalho method but adapted to return full distributions.
 }
 \examples{
@@ -87,4 +88,7 @@ fit <-  HC(X=x, Y=post_mu, theta = post_beta,
                penalty = "lasso", 
                method = "projection"
 )
+}
+\references{
+Hahn, P. Richard and Carlos M. Carvalho. (2014) "Decoupling Shrinkage and Selection in Bayesian Linear Models: A Posterior Summary Perspective." \url{https://arxiv.org/pdf/1408.0464.pdf}
 }
