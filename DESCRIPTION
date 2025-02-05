@@ -1,8 +1,8 @@
 Package: WpProj
 Type: Package
 Title: Linear p-Wasserstein Projections
-Version: 0.2.1
-Date: 2024-01-31
+Version: 0.2.3
+Date: 2025-02-03
 Authors@R: 
   c(
   person(given = "Eric", 
@@ -52,23 +52,25 @@ Authors@R:
     role = "ctb", 
     comment = "'Network Simplex' algorithm adapted from their code")
   )
-Description: Performs Wasserstein projections from the predictive distributions of any model into the space of predictive distributions of linear models. We utilize L1 penalties to also reduce the complexity of the model space. This package employs the methods as described in Dunipace, Eric and Lorenzo Trippa (2020) <arXiv:2012.09999>.
+Description: Performs Wasserstein projections from the predictive distributions of any model into the space of predictive distributions of linear models. We utilize L1 penalties to also reduce the complexity of the model space. This package employs the methods as described in Dunipace, Eric and Lorenzo Trippa (2020) <doi:10.48550/arXiv.2012.09999>.
 License: GPL (== 3.0)
 Depends: R (>= 4.0)
-Imports: ggplot2, ggsci, ggridges, glmnet, oem, Rcpp, rlang, ROI,
+Imports: approxOT (>= 1.2), glmnet, oem, Rcpp, rlang, ROI,
         ROI.plugin.ecos, ROI.plugin.lpsolve, Matrix, rqPen, quantreg,
         doParallel, foreach, doRNG, dplyr, stats, magrittr, methods,
         slam, lifecycle
-LinkingTo: BH, Rcpp (>= 1.0.0), RcppEigen (>= 0.3.3.4.0), RcppProgress,
-        RcppCGAL, RSpectra
-Suggests: testthat (>= 2.1.0), transport, Rmosek, spelling, ECOSolveR
-RoxygenNote: 7.3.1
+LinkingTo: approxOT (>= 1.2), BH, Rcpp (>= 1.0.0), RcppCGAL, RcppEigen,
+        RcppProgress, RSpectra
+Suggests: ggplot2, ggsci, ggridges, testthat (>= 2.1.0), transport,
+        Rmosek, spelling, ECOSolveR
+RoxygenNote: 7.3.2
 URL: https://github.com/ericdunipace/WpProj
 BugReports: https://github.com/ericdunipace/WpProj/issues
+SystemRequirements: C++17
 Encoding: UTF-8
 Language: en-US
 NeedsCompilation: yes
-Packaged: 2024-02-01 21:49:55 UTC; eifer
+Packaged: 2025-02-03 23:43:13 UTC; eifer
 Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>),
   Clemens Schmid [ctb] (<https://orcid.org/0000-0003-3448-5715>, ETA
     progres bar is adapted from their code),
@@ -85,4 +87,4 @@ Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>),
     code)
 Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
 Repository: CRAN
-Date/Publication: 2024-02-02 10:10:05 UTC
+Date/Publication: 2025-02-05 18:20:02 UTC

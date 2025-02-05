@@ -28,7 +28,7 @@
 #' 
 #' @return a `WpProj` object with selected covariates and their values
 #' 
-#' @references Hahn, P. Richard and Carlos M. Carvalho. (2014) "Decoupling Shrinkage and Selection in Bayesian Linear Models: A Posterior Summary Perspective." <https://arxiv.org/pdf/1408.0464.pdf>
+#' @references Hahn, P. Richard and Carlos M. Carvalho. (2014) "Decoupling Shrinkage and Selection in Bayesian Linear Models: A Posterior Summary Perspective." <https://arxiv.org/pdf/1408.0464>
 #' 
 #' @export
 #' 
@@ -75,6 +75,7 @@ HC <- function(X, Y=NULL, theta, family="gaussian",
       penalty <- "lasso"
     }
   }
+  this.call <- as.list(match.call()[-1])
   method <- match.arg(method)
   intercept <- FALSE
   
@@ -190,6 +191,12 @@ HC <- function(X, Y=NULL, theta, family="gaussian",
     } else {
       output$eta <- lapply(output$theta, function(tt) x %*% tt)
     }
+  output <- standardize_output(output, list(power = 2, 
+                                            method = "HC",
+                                            solver = "lasso",
+                                            niter = NA_integer_,
+                                            nzero = output$nzero),
+                               call = this.call)
   class(output) <- c("WpProj", "HC")
   
   return(output)

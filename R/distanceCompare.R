@@ -45,7 +45,9 @@ methods::setClass("distcompare",
 #' )
 #' dc <- distCompare(models = list("L1" = fit1, "BP" = fit2),
 #'                  target = list(parameters = post_beta, predictions = post_mu))
+#' if(rlang::is_installed(c("ggplot2","ggsci"))) {
 #' plot(dc)
+#' }
 #' }
 distCompare <- function(models, target = list(parameters = NULL, predictions = NULL), power = 2, 
                          method = "exact", 
@@ -155,7 +157,7 @@ dist_fun <- function(mulist, mu, p, ground_p, method, observation.orientation, p
           denom <- max(ncol(mu), ncol(m))
           sqrt(sum((c(m) - c(mu))^2)/denom)
         } else {
-          WpProj::wasserstein(X = m, Y = mu, p = p, 
+          approxOT::wasserstein(X = m, Y = mu, p = p, 
                                        ground_p = ground_p, 
                                        observation.orientation = observation.orientation, 
                                        method = method, ...)

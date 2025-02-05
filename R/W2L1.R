@@ -67,7 +67,7 @@ W2L1 <- function(X, Y=NULL, theta = NULL,
                  method = c("projection","selection.variable","location.scale","scale"),
                  transport.method = transport_options(),
                  epsilon = 0.05,
-                 OTmaxit = 100,
+                 OTmaxit = 0,
                  model.size = NULL,
                  lambda = numeric(0), 
                  nlambda = 100L, 
@@ -100,6 +100,7 @@ W2L1 <- function(X, Y=NULL, theta = NULL,
   
   # make sure X is a matrix
   if(!is.matrix(X)) X <- as.matrix(X)
+  if(dim(X)[2] == 1) X <- t(X)
   
   # confirm dims
   dims <- dim(X)
@@ -140,7 +141,6 @@ W2L1 <- function(X, Y=NULL, theta = NULL,
     stop("Must specify Y or theta if method == 'projection'. If method != 'projection' you must always specify theta. In the latter case, Y is optional")
   }
   
-  if(!any(dim(Y) %in% dim(X_))) stop("Number of observations of Y must match X")
   if(!is.matrix(Y)) Y <- as.matrix(Y)
   
   # properly orient Y
@@ -152,6 +152,7 @@ W2L1 <- function(X, Y=NULL, theta = NULL,
     stop("The number of observations of Y do not match X")
   }
   
+  if(!any(dim(Y) %in% dim(X_))) stop("Number of observations of Y must match X")
   if(method != "projection") if(all(Y_==crossprod(X_, theta_))) same <- TRUE
   
   # create dummy theta for projection method
@@ -333,8 +334,8 @@ W2L1 <- function(X, Y=NULL, theta = NULL,
   if(is.null(epsilon)) {
     epsilon <- 0.05
   }
-  if(is.null(OTmaxit)) {
-    OTmaxit <- 100
+  if(is.null(OTmaxit)  || missing(OTmaxit)) {
+    OTmaxit <- switch(transport.method, "exact" = 0L, 100)
   }
   # pseudo_observations <- 0.0
   

@@ -1,22 +1,3 @@
-#' Available Wasserstein Distance Methods
-#'
-#' @return A character vector of available methods
-#' @export
-#' 
-#' @details
-#' This function features several methods of calculating approximate optimal transport methods in addition to the exact method. The first is the "sinkhorn" method of Cuturi (2013). The second is the "greenkhorn" method of Altschuler et al. (2017). The third is the Hilbert sorting method of Bernton et al (2017). Then there are two novel approximation methods based on the univariate ranks of each covariate to obtain the average rank "rank", and a method based on the univariate distances for each covariate "univariate.approximation.pwr"
-#' 
-#'
-#' @examples
-#' transport_options()
-transport_options <- function() {
-  return(c("exact", "sinkhorn", "greenkhorn",
-           # "randkhorn", "gandkhorn",
-           "hilbert", "rank",
-           "univariate.approximation.pwr"))
-}
-
-
 #' Recognized L1 Penalties
 #'
 #' @return A character vector with the possible penalties for L1 methods
@@ -56,7 +37,8 @@ verify_solver_options <- function(solver.options, function_name) {
 #' @param lambda The penalty parameter to use if method is "L1".
 #' @param nlambda The number of lambdas to explore for the "L1" method if `lambda` is not provided 
 #' @param lambda.min.ratio The minimum ratio of max to min lambda for "L1" method. Default 1e-4.
-#' @param gamma Tuning parameter for SCAD and MCP penalties if method = "L1".
+#' @param gamma Tuning parameter for SCAD and MCP penalties if method = "L1". `>=1`
+#' @param alpha Tuning parameter for elastic net penalties `alpha` should be in `[0,1]`.
 #' @param maxit The maximum iterations for optimization. Default is 500.
 #' @param model.size What is the maximum number of coefficients to have in the final model. Default is NULL. If NULL, will find models from the minimum size, 0, to the number of columns in `X`.
 #' @param tol The tolerance for convergence
@@ -75,7 +57,7 @@ L1_method_options <- function(penalty =  L1_penalty_options(),
                                  lambda = numeric(0),
                                  nlambda = 500L,
                                  lambda.min.ratio = 1e-4,
-                                 gamma = 1, maxit = 500L,
+                                 gamma = 1, alpha = 1, maxit = 500L,
                                  model.size = NULL,
                                  tol = 1e-07,
                               display.progress = FALSE,
@@ -103,6 +85,8 @@ L1_method_options <- function(penalty =  L1_penalty_options(),
   stopifnot(nlambda > 0L)
   stopifnot(lambda.min.ratio >= 0)
   stopifnot(gamma >= 0.0)
+  stopifnot(alpha >= 0.0)
+  stopifnot(alpha <= 1.0)
   stopifnot(maxit > 0L)
   if (!is.null(model.size)) {
     stopifnot(is.numeric(model.size))
@@ -117,22 +101,26 @@ L1_method_options <- function(penalty =  L1_penalty_options(),
   nlambda <- as.integer(nlambda)
   lambda.min.ratio <- as.double(lambda.min.ratio)
   gamma <- as.double(gamma)
+  alpha <- as.double(alpha)
   maxit <- as.integer(maxit)
   tol <- as.double(tol)
   
   solver.options <- verify_solver_options(solver.options, "L1_method_options")
   
+  out   <- c(list(penalty = penalty,
+                  lambda = lambda,
+                  nlambda = nlambda,
+                  lambda.min.ratio = lambda.min.ratio,
+                  gamma = gamma,
+                  alpha = alpha,
+                  maxit = maxit,
+                  model.size = model.size,
+                  tol = tol,
+                  display.progress = display.progress),
+             solver.options)
   
-  return(c(list(penalty = penalty,
-              lambda = lambda,
-              nlambda = nlambda,
-              lambda.min.ratio = lambda.min.ratio,
-              gamma = gamma,
-              maxit = maxit,
-              model.size = model.size,
-              tol = tol,
-              display.progress = display.progress),
-              solver.options))
+  class(out) <- c("wpproj_options_list", "L1_options")
+  return(out)
   
 }
 
@@ -191,7 +179,6 @@ binary_program_method_options <- function(
   stopifnot(maxit > 0L)
   stopifnot(infimum.maxit > 0L)
   stopifnot(is.numeric(OTmaxit))
-  stopifnot(OTmaxit > 0L )
   if (!is.null(model.size)) {
     stopifnot(is.numeric(model.size))
     stopifnot("model.size must be NULL or > 0" = model.size > 0)
@@ -208,6 +195,14 @@ binary_program_method_options <- function(
   
   # make sure args are of the right data type
   transport.method <- match.arg(transport.method, choices = transport_options(), several.ok = FALSE)
+  if(missing(OTmaxit) || is.null(OTmaxit)) OTmaxit <- switch(transport.method, "exact" = 0L, "networkflow" = 0L, 100L)
+  if (transport.method != "exact" && transport.method != "networkflow") {
+    stopifnot(OTmaxit > 0L )
+  } 
+  else {
+    stopifnot(OTmaxit >= 0L)
+  }
+  
   epsilon <- as.double(epsilon)
   maxit <- as.integer(maxit)
   infimum.maxit <- as.integer(infimum.maxit)
@@ -221,16 +216,19 @@ binary_program_method_options <- function(
   
   solver.options <- verify_solver_options(solver.options, "binary_program_method_options")
   
-  return(c(list(transport.method = transport.method,
-              epsilon = epsilon,
-              maxit = maxit,
-              infimum.maxit = infimum.maxit,
-              OTmaxit = OTmaxit,
-              model.size = model.size,
-              nvars = nvars,
-              tol = tol,
-              display.progress=display.progress), 
-              parallel = parallel, solver.options))
+  out <- c(list(transport.method = transport.method,
+                epsilon = epsilon,
+                maxit = maxit,
+                infimum.maxit = infimum.maxit,
+                OTmaxit = OTmaxit,
+                model.size = model.size,
+                nvars = nvars,
+                tol = tol,
+                display.progress=display.progress, 
+           parallel = parallel), solver.options)
+  
+  class(out) <- c("wpproj_options_list", "binary_program_options")
+  return(out)
   
 }
 
@@ -258,7 +256,7 @@ stepwise_method_options <- function(force = NULL,
                                     direction = c("backward","forward"), 
                                     method= c("binary program","projection"),
                                     transport.method = transport_options(),
-                                    OTmaxit = 100,
+                                    OTmaxit = 0,
                                     epsilon = 0.05,
                                     model.size = NULL,
                                     display.progress = FALSE,
@@ -298,7 +296,6 @@ stepwise_method_options <- function(force = NULL,
   stopifnot(is.numeric(epsilon))
   stopifnot(epsilon > 0.0)
   stopifnot(is.numeric(OTmaxit))
-  stopifnot(OTmaxit > 0L )
   if (!is.null(model.size)) {
     stopifnot(is.numeric(model.size))
     stopifnot("model.size must be NULL or > 0" = model.size > 0)
@@ -308,7 +305,15 @@ stepwise_method_options <- function(force = NULL,
   
   # make sure args are of the right data type
   transport.method <- match.arg(transport.method, choices = transport_options(), several.ok = FALSE)
+  
   epsilon <- as.double(epsilon)
+  if(missing(OTmaxit) || is.null(OTmaxit)) OTmaxit <- switch(transport.method, "exact" = 0L, "networkflow" = 0L, 100L)
+  if (transport.method != "exact" && transport.method != "networkflow") {
+    stopifnot(OTmaxit > 0L )
+  } 
+  else {
+    stopifnot(OTmaxit >= 0L)
+  }
   OTmaxit <- as.integer(OTmaxit)
   
   # check parallel
@@ -317,7 +322,7 @@ stepwise_method_options <- function(force = NULL,
     if (is.numeric(parallel)) parallel <- as.integer(parallel)
   }
   
-  return(list(
+  out <- list(
     force = force, 
     direction = direction, 
     method = method,
@@ -327,8 +332,10 @@ stepwise_method_options <- function(force = NULL,
     model.size = model.size,
     display.progress=display.progress, 
     parallel = parallel,
-    calc.theta = calc.theta))
+    calc.theta = calc.theta)
   
+  class(out) <- c("wpproj_options_list", "stepwise_options")
+  return(out)
 }
 
 #' Options For Use With the Simulated Annealing Selection Method
@@ -344,8 +351,9 @@ stepwise_method_options <- function(force = NULL,
 #' @param proposal.method The method to propose the next covariate to add. One of "covariance" or "random". "covariance" will randomly select from covariates with probability proportional to the absolute value of the covariance. "uniform" will select covariates uniformly at random.
 #' @param energy.distribution The energy distribution to use for evaluating proposals. One of "boltzman" or "bose-einstein". Default is "boltzman".
 #' @param cooling.schedule The schedule to use for cooling temperatures. One of "Geman-Geman" or "exponential". Default is "Geman-Geman".
-#' @param model.size How many coefficients should the maximum final model have?
-#' @param display.progress Logical. Should intermediate progress be displayed? TRUE or FALSE. Default is FALSE.
+#' @param model.size How many coefficients should the maximum final model have? Ignored if `nvars` set.
+#' @param nvars What model sizes should one check? Should be a numeric vector with maximum less than number of variables or `NULL.` Default is NULL. Overrides `model.size` if is not `NULL`
+#' @param display.progress Logical. Should intermediate progress be displayed? TRUE or FALSE. Default is `FALSE.`
 #' @param parallel A cluster backend to be used by [foreach::foreach()]. See [foreach::foreach()] for details about how to set them up. The `WpProj` functions will register the cluster with the [doParallel::registerDoParallel()] function internally.
 #' @param calc.theta Return the linear coefficients? Default is TRUE.
 #' @param ... Not used.
@@ -359,7 +367,7 @@ simulated_annealing_method_options <- function(
     force = NULL,
     method= c("binary program","projection"),
     transport.method = transport_options(),
-    OTmaxit = 100L,
+    OTmaxit = 0L,
     epsilon = 0.05,
     maxit = 1L,
     temps = 1000L,
@@ -368,6 +376,7 @@ simulated_annealing_method_options <- function(
     energy.distribution = c("boltzman","bose-einstein"),
     cooling.schedule = c("Geman-Geman","exponential"),
     model.size = NULL,
+    nvars = NULL,
     display.progress = FALSE,
     parallel = NULL,
     calc.theta = TRUE,
@@ -414,11 +423,14 @@ simulated_annealing_method_options <- function(
   stopifnot(epsilon > 0.0)
   stopifnot(is.numeric(maxit))
   stopifnot(maxit > 0L)
-  stopifnot(is.numeric(OTmaxit))
-  stopifnot(OTmaxit > 0L )
   if (!is.null(model.size)) {
     stopifnot(is.numeric(model.size))
     stopifnot("model.size must be NULL or > 0" = model.size > 0)
+  }
+  if (!is.null(nvars)) {
+    stopifnot("nvars must be NULL or an integer vector of model sizes to find." = is.numeric(nvars))
+    stopifnot("nvars must be NULL or an integer vector of model sizes to find." = all(nvars > 0))
+    nvars <- as.integer(nvars)
   }
   stopifnot(is.logical(display.progress))
   stopifnot(is.logical(calc.theta))
@@ -427,6 +439,18 @@ simulated_annealing_method_options <- function(
   
   # make sure character args are correct
   transport.method <- match.arg(transport.method, choices = transport_options(), several.ok = FALSE)
+  stopifnot(is.numeric(OTmaxit))
+  if(missing(OTmaxit) || is.null(OTmaxit)) OTmaxit <- switch(transport.method, "exact" = 0L, "networkflow" = 0L, 100L)
+  
+  if (transport.method != "exact" && transport.method != "networkflow") {
+    stopifnot(OTmaxit > 0L )
+  } 
+  else {
+    stopifnot(OTmaxit >= 0L)
+  }
+  
+  
+  
   energy.distribution <- match.arg(energy.distribution)
   cooling.schedule <- match.arg(cooling.schedule)
   proposal.method <- match.arg(proposal.method)
@@ -452,9 +476,10 @@ simulated_annealing_method_options <- function(
     model.size <- as.integer(model.size)
   }
   
-  return(list(
+  out <- list(
     force = force,
     model.size  = model.size,
+    nvars = nvars,
     maxit = maxit,
     temps = temps,
     max.time = max.time,
@@ -470,7 +495,8 @@ simulated_annealing_method_options <- function(
     parallel = parallel,
     calc.theta = calc.theta
     )
-  )
+  class(out) <- c("wpproj_options_list", "simulated_annealing_options")
+  return(out)
   
 }
 
@@ -492,7 +518,7 @@ simulated_annealing_method_options <- function(
 L0_method_options <- function(method = c("binary program", "projection"),
                               transport.method = transport_options(),
                               epsilon = 0.05,
-                              OTmaxit = 100,
+                              OTmaxit = 0,
                               parallel = NULL,
                               ...){
   # WPL0(X, Y = NULL, theta, power = 2,
@@ -507,14 +533,23 @@ L0_method_options <- function(method = c("binary program", "projection"),
                    "projection" = "projection",
                    "selection.variable"
   )
-  
   stopifnot(is.numeric(epsilon))
   stopifnot(epsilon > 0.0)
   stopifnot(is.numeric(OTmaxit))
-  stopifnot(OTmaxit > 0L )
+  
+  transport.method <- match.arg(transport.method, choices = transport_options(), several.ok = FALSE)
+  if(missing(OTmaxit) || is.null(OTmaxit)) OTmaxit <- switch(transport.method, "exact" = 0L, "networkflow" = 0L, 100L)
+  OTmaxit <- as.integer(OTmaxit)
+  if (transport.method != "exact" && transport.method != "networkflow") {
+    stopifnot(OTmaxit > 0L )
+  } 
+  else {
+    stopifnot(OTmaxit >= 0L)
+  }
+  
   
   epsilon <- as.double(epsilon)
-  OTmaxit <- as.integer(OTmaxit)
+  
   
   # check parallel
   if(!is.null(parallel)) {
@@ -525,13 +560,16 @@ L0_method_options <- function(method = c("binary program", "projection"),
     }
   }
   
-  return(list(
+  out <- list(
     method = method,
     transport.method = transport.method,
     epsilon = epsilon,
     OTmaxit = OTmaxit,
     parallel = parallel
-  ))
+  )
+  
+  class(out) <- c("wpproj_options_list", "L0_options")
+  return(out)
 }
 
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol

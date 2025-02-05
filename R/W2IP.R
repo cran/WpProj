@@ -54,6 +54,8 @@ W2IP <- function(X, Y=NULL, theta,
   
   dots <- list(...)
   if(!is.matrix(X)) X <- as.matrix(X)
+  if(dim(X)[2] == 1) X <- t(X)
+  if(!is.matrix(Y)) Y <- as.matrix(Y)  
   if(!is.matrix(theta)) theta <- as.matrix(theta)
   dims <- dim(X)
   p <- dims[2]
@@ -126,7 +128,7 @@ W2IP <- function(X, Y=NULL, theta,
   } else {
     theta_ <- theta
   }
-  if(nrow(theta) != p) stop("dimensions of theta must match X")
+  if(nrow(theta_) != p) stop("dimensions of theta must match X")
   theta_save <- theta_
   
   #transpose X
@@ -168,7 +170,7 @@ W2IP <- function(X, Y=NULL, theta,
   epsilon <- dots$epsilon
   if(is.null(epsilon)) epsilon <- 0.05
   OTmaxit <- dots$OTmaxit
-  if(is.null(OTmaxit)) OTmaxit <- 100
+  if(is.null(OTmaxit) || missing(OTmaxit)) OTmaxit <- switch(transport.method, "exact" = 0L, 100L)
   # else if (solution.method == "lp") {
   #   if(!is.null(control$verbose)) control$verbose <- as.logical(control$verbose)
   #   if(!is.null(control$presolve)) control$presolve <- as.logical(control$presolve)
@@ -221,6 +223,7 @@ W2IP <- function(X, Y=NULL, theta,
   QP <- QP_orig <- qp_w2(ss$XtX,ss$XtY,1)
   # LP <- ROI::ROI_reformulate(QP,"lp",method = "bqp_to_lp" )
   alpha <- alpha_save <- rep(0,p)
+  obj <- obj_save <- Inf
   beta <- matrix(0, nrow = p, ncol = p_star)
   iter.seq <- rep(0, p_star)
   comb <- function(x, ...) {
@@ -241,6 +244,7 @@ W2IP <- function(X, Y=NULL, theta,
        QP <- QP_orig
        QP$constraints$rhs[1L] <- m
        results <- list(NULL, NULL)
+       obj_save <- Inf
        for(inf in 1:options$infm_maxit) {
          TP <- translate(QP, solution.method)
          # sol.meth <- if ( solution.method == "cone" && !("cone" %in% names(TP)) ) {
@@ -257,16 +261,21 @@ W2IP <- function(X, Y=NULL, theta,
                          "gurobi" = sol,
                          "mosek" = sol,
                          ROI::solution(sol)[1:p])
+         obj <- c(0.5 * t(alpha) %*% (QP$objective$Q) %*% alpha - QP$objective$L %*% alpha)
          if(all(is.na(alpha))) {
            warning("Likely terminated early")
            break
          }
-         if(not.converged(alpha, alpha_save, tol)){
+         if(not.converged(alpha, alpha_save, tol) || 
+            not.converged(obj, obj_save, tol)){
            alpha_save <- alpha
+           obj_save <- obj
+           
            Ytemp <- selVarMeanGen(X_, theta_, as.double(alpha))
-           xty <- xtyUpdate(X, Ytemp, theta_, result_ = alpha, 
+           xty   <- xtyUpdate(X, Ytemp, theta_, result_ = alpha, 
                                              OToptions)
-           QP <- qp_w2(xtx,xty,m)
+           QP$objective$L$v <- c(-2*xty)
+           
          } else {
            break
          }
@@ -324,6 +333,9 @@ qp_w2 <- function(xtx, xty, K) {
   LC1 <- ROI::L_constraint(A1, ROI::eq(1), K)
   ROI::constraints(op) <- LC1
   ROI::types(op) <- rep.int("B", d)
+  
+  op$Upper <- chol(Q0)
+  
   return(op)
 }
 
@@ -364,31 +376,97 @@ qp_w2 <- function(xtx, xty, K) {
 
 mosek_solver <- function(problem, opts = NULL, start) {
   
-  num_param <- length(problem$objective$L$v)
-  # qobj <- Matrix::sparseMatrix(i = problem$objective$Q$i,
+  cc        <- as.numeric(problem$objective$L$v)
+  num_param <- length(cc)
+  # Q <- Matrix::sparseMatrix(i = problem$objective$Q$i,
   #                              j = problem$objective$Q$j,
-  #                              x = problem$objective$Q$v/2)
-  lower.tri <- which(problem$objective$Q$j <= problem$objective$Q$i)
+  #                              x = problem$objective$Q$v )
+  Upper<- problem$Upper
+  prob <- mosek_qptoprob(F = Upper, f = cc, 
+                                 Aeq = Matrix::sparseMatrix(i=problem$constraints$L$i,
+                                                          j = problem$constraints$L$j,
+                                                          x = problem$constraints$L$v),
+                                 beq = problem$constraints$rhs,
+                                 lb = rep(0,num_param),
+                                 ub = rep(1, num_param))
+  
+  # lower.tri <- which(problem$objective$Q$j <= problem$objective$Q$i)
   # trimat <- Matrix::tril(qobj)
-  prob <-  list(sense = "min",
-                c = problem$objective$L$v,
-                A = Matrix::sparseMatrix(i=problem$constraints$L$i,
-                                         j = problem$constraints$L$j,
-                                         x = problem$constraints$L$v),
-                bc = rbind(problem$constraints$rhs, problem$constraints$rhs),
-                bx = rbind(rep(0,num_param), rep(1, num_param)),
-                qobj = list(i =  problem$objective$Q$i[lower.tri], 
-                             j =  problem$objective$Q$j[lower.tri], 
-                             v =  problem$objective$Q$v[lower.tri]/2),
-                sol = list(int = list(xx = start)),
-                intsub = 1:num_param)
+  # prob$sol = list(int = list(xx = start))
+  prob$intsub = 1:num_param
+  # prob <-  list(sense = "min",
+  #               c = cc,
+  #               A = Matrix::sparseMatrix(i=problem$constraints$L$i,
+  #                                        j = problem$constraints$L$j,
+  #                                        x = problem$constraints$L$v),
+  #               bc = rbind(problem$constraints$rhs, problem$constraints$rhs),
+  #               bx = rbind(rep(0,num_param), rep(1, num_param)),
+  #               qobj = list(i =  problem$objective$Q$i[lower.tri],
+  #                            j =  problem$objective$Q$j[lower.tri],
+  #                            v =  problem$objective$Q$v[lower.tri]/2),
+  #               sol = list(int = list(xx = start)),
+  #               intsub = 1:num_param)
   
   if(is.null(opts) | length(opts) == 0) opts <- list(verbose = 0)
   
   res <- Rmosek::mosek(prob, opts)
   
-  sol <- as.integer(res$sol$int$xx)
+  sol <- round(res$sol$int$xx[1:num_param])
   
   return(sol)
+}
+
+mosek_qptoprob <- function (F = NA, f = NA, A = NA, b = NA, Aeq = NA, beq = NA, 
+                            lb = NA, ub = NA) 
+{
+  # code directly from Rmosek::mosek_qptoprob
+  stopifnot(all(!is.na(F)))
+  stopifnot(all(!is.na(f)))
+  stopifnot(length(f) == ncol(F))
+  if (all(!is.na(A)) || all(!is.na(b))) {
+    stopifnot(all(!is.na(A)) && all(!is.na(b)))
+    if (!methods::is(A, "TsparseMatrix")) {
+      A <- methods::as(A, "CsparseMatrix")
+    }
+    stopifnot(nrow(A) == length(b))
+    stopifnot(ncol(A) == length(f))
+  }
+  else {
+    A <- Matrix::Matrix(0, nrow = 0, ncol = length(f), sparse = TRUE)
+    b <- numeric(0)
+  }
+  if (all(!is.na(Aeq)) || all(!is.na(beq))) {
+    stopifnot(all(!is.na(Aeq)) && all(!is.na(beq)))
+    if (!methods::is(Aeq, "TsparseMatrix")) {
+      Aeq <- methods::as(Aeq, "CsparseMatrix")
+    }
+    stopifnot(nrow(Aeq) == length(beq))
+    stopifnot(ncol(Aeq) == length(f))
+  }
+  else {
+    Aeq <- Matrix::Matrix(0, nrow = 0, ncol = length(f), sparse = TRUE)
+    beq <- numeric(0)
+  }
+  stopifnot(all(!is.na(lb)))
+  stopifnot(length(lb) == length(f))
+  stopifnot(all(!is.na(ub)))
+  stopifnot(length(ub) == length(f))
+  prob <- list(sense = "min")
+  nt <- nrow(F)
+  nx <- ncol(F)
+  nrA <- nrow(A)
+  nrEQ <- nrow(Aeq)
+  prob$c <- c(f, 1, 0, rep(0, nt))
+  prob$A <- rbind(cbind(A, Matrix::Matrix(0, nrA, 1), Matrix::Matrix(0, nrA, 
+                                                     1), Matrix::Matrix(0, nrA, nt)), cbind(Aeq, Matrix::Matrix(0, nrEQ, 
+                                                                                                1), Matrix::Matrix(0, nrEQ, 1), Matrix::Matrix(0, nrEQ, nt)), cbind(F, 
+                                                                                                                                                    Matrix::Matrix(0, nt, 1), Matrix::Matrix(0, nt, 1), -1 * Matrix::Diagonal(nt)))
+  prob$bc <- rbind(blc = c(rep(-Inf, nrA), beq, rep(0, nt)), 
+                   buc = c(b, beq, rep(0, nt)))
+  prob$bx <- rbind(blx = c(lb, 0, 1, rep(-Inf, nt)), bux = c(ub, 
+                                                             Inf, 1, rep(Inf, nt)))
+  prob$cones <- matrix(nrow = 2, dimnames = list(c("type", 
+                                                   "sub"), c()), list("RQUAD", nx + (1:(2 + nt))), )
+  return(prob)
 }
 
