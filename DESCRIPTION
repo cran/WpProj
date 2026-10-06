@@ -1,8 +1,8 @@
 Package: WpProj
 Type: Package
 Title: Linear p-Wasserstein Projections
-Version: 0.2.3
-Date: 2025-02-03
+Version: 0.3
+Date: 2026-10-05
 Authors@R: 
   c(
   person(given = "Eric", 
@@ -57,28 +57,30 @@ License: GPL (== 3.0)
 Depends: R (>= 4.0)
 Imports: approxOT (>= 1.2), glmnet, oem, Rcpp, rlang, ROI,
         ROI.plugin.ecos, ROI.plugin.lpsolve, Matrix, rqPen, quantreg,
-        doParallel, foreach, doRNG, dplyr, stats, magrittr, methods,
-        slam, lifecycle
+        doFuture (>= 1.0.0), foreach, future, dplyr, stats, magrittr,
+        methods, slam, utils, lifecycle
 LinkingTo: approxOT (>= 1.2), BH, Rcpp (>= 1.0.0), RcppCGAL, RcppEigen,
         RcppProgress, RSpectra
-Suggests: ggplot2, ggsci, ggridges, testthat (>= 2.1.0), transport,
-        Rmosek, spelling, ECOSolveR
-RoxygenNote: 7.3.2
+Suggests: ggplot2, parallel, ggridges, testthat (>= 2.1.0), transport,
+        Rmosek, spelling, ECOSolveR, ROI.plugin.clarabel, scip,
+        ROI.plugin.highs
 URL: https://github.com/ericdunipace/WpProj
 BugReports: https://github.com/ericdunipace/WpProj/issues
 SystemRequirements: C++17
 Encoding: UTF-8
 Language: en-US
+Config/roxygen2/version: 8.1.0
 NeedsCompilation: yes
-Packaged: 2025-02-03 23:43:13 UTC; eifer
-Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>),
-  Clemens Schmid [ctb] (<https://orcid.org/0000-0003-3448-5715>, ETA
-    progres bar is adapted from their code),
+Packaged: 2026-10-06 16:58:26 UTC; eifer
+Author: Eric Dunipace [aut, cre] (ORCID:
+    <https://orcid.org/0000-0001-8909-213X>),
+  Clemens Schmid [ctb] (ORCID: <https://orcid.org/0000-0003-3448-5715>,
+    ETA progres bar is adapted from their code),
   Espen Bernton [ctb] ('Hilbert Sort' adapted from their code),
   Mathieu Gerber [ctb] ('Hilbert Sort' adapted from their code),
   Pierre Jacob [ctb] ('Hilbert Sort' adapted from their code),
   Bin Dai [ctb] (W2 projections adapted from their 'OEM' code),
-  Jared Huling [ctb] (<https://orcid.org/0000-0003-0670-4845>, W2
+  Jared Huling [ctb] (ORCID: <https://orcid.org/0000-0003-0670-4845>, W2
     projections adapted from their 'OEM' code),
   Yixuan Qiu [ctb] (W2 projections adapted from their 'OEM' code),
   Dominic Schuhmacher [ctb] ('Shortsimplex 'optimal transport method
@@ -87,4 +89,4 @@ Author: Eric Dunipace [aut, cre] (<https://orcid.org/0000-0001-8909-213X>),
     code)
 Maintainer: Eric Dunipace <edunipace@mail.harvard.edu>
 Repository: CRAN
-Date/Publication: 2025-02-05 18:20:02 UTC
+Date/Publication: 2026-10-06 20:20:10 UTC
